@@ -186,7 +186,12 @@ def render_upload_stage():
     )
 
     if not os.environ.get("GOOGLE_API_KEY"):
-        st.warning("No GOOGLE_API_KEY found. Set it in your .env file.")
+        st.warning(
+            "GOOGLE_API_KEY is not set. Get one for free at "
+            "https://aistudio.google.com/apikey and add it (see "
+            ".env.example) before uploading a syllabus, since topic/quiz/"
+            "material generation all call the Gemini API."
+        )
 
     uploaded = st.file_uploader("Syllabus PDF", type=["pdf"])
     course_name = st.text_input("Course name (optional)", placeholder="e.g. Introduction to Statistics")
@@ -342,25 +347,22 @@ def render_topic_stage(conn, course, topic):
         if result_key in st.session_state:
             result = render_quiz_result(topic, form_key="pq")
             passed = result["score"] >= PASS_THRESHOLD
-            processed_key = f"processed_pq_{topic['id']}"
-            if submitted and not st.session_state.get(processed_key, False):
-                db.update_topic(
-                    conn,
-                    topic["id"],
-                    status="mastered" if passed else "needs_review",
-                    increment_attempts=True,
-                )
-                st.session_state[processed_key] = True
+            db.update_topic(
+                conn,
+                topic["id"],
+                status="mastered" if passed else "needs_review",
+                increment_attempts=True,
+            )
             if passed:
                 if st.button("Continue to learning path ➜", type="primary"):
-                    for k in (mode_key, result_key, f"questions_pq_{topic['id']}", processed_key):
+                    for k in (mode_key, result_key, f"questions_pq_{topic['id']}"):
                         st.session_state.pop(k, None)
                     st.session_state.active_topic_id = None
                     st.rerun()
             else:
                 st.warning("Let's go over this topic again before retrying.")
                 if st.button("Study this topic again", type="primary"):
-                    for k in (mode_key, result_key, f"questions_pq_{topic['id']}", processed_key):
+                    for k in (mode_key, result_key, f"questions_pq_{topic['id']}"):
                         st.session_state.pop(k, None)
                     st.session_state[mode_key] = "material"
                     st.rerun()
